@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>映像研究会</title>
+  <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 500px;
+      margin: 30px auto;
+      padding: 0 10px;
+      background: linear-gradient(135deg, #fff0f6, #f0f4ff);
+      color: #333;
+    }
+
+    h2 {
+      text-align: center;
+      color: #05a058;
+      font-family: "Zen Maru Gothic", "Rounded Mplus 1c", sans-serif;
+      font-size: 32px;
+      margin-top: 10px;
+      margin-bottom: 20px;
+    }
+
+    #messages {
+      background-color: #ffffff;
+      border: 1px solid #aaa;
+      border-radius: 8px;
+      padding: 10px;
+      min-height: 200px;
+      margin-bottom: 10px;
+      white-space: pre-wrap;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      width: 100%;
+      box-sizing: border-box;
+      font-size: 14px;
+      overflow-y: auto;
+      max-height: 500px;
+    }
+
+    #name-area, #input-area {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    #userName, #messageInput {
+      flex: 1;
+      padding: 8px;
+      font-size: 14px;
+      resize: none;
+    }
+
+    #sendBtn, #saveNameBtn {
+      padding: 8px 16px;
+      cursor: pointer;
+    }
+
+    .entry {
+      margin-bottom: 12px;
+      border-bottom: 1px dashed #ddd;
+      padding-bottom: 6px;
+    }
+
+    .meta {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 4px;
+    }
+  </style>
+</head>
+<body>
+
+<h2>映像研究会</h2>
+
+<div id="messages"></div>
+
+<div id="name-area">
+  <input id="userName" type="text" placeholder="名も無き流浪">
+  <button id="saveNameBtn">名前を保存</button>
+</div>
+
+<div id="input-area">
+  <textarea id="messageInput" placeholder="メッセージを入力…" rows="2"></textarea>
+  <button id="sendBtn">投稿</button>
+</div>
+
+<a id="backLink" href="index.html">ホームに戻る</a>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+
+<script>
+  // ★ あなたの Firebase 設定（そのまま使える）
+  const firebaseConfig = {
+    apiKey: "AIzaSyDTDS4AbWgjWGlNpAfHHaXp_0LinPnWlIA",
+    authDomain: "chat-practice-cb2a3.firebaseapp.com",
+    projectId: "chat-practice-cb2a3",
+    storageBucket: "chat-practice-cb2a3.firebasestorage.app",
+    messagingSenderId: "1030899440592",
+    appId: "1:1030899440592:web:9579808f668e709931f7d5"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  const messagesBox = document.getElementById("messages");
+  const input = document.getElementById("messageInput");
+  const sendBtn = document.getElementById("sendBtn");
+  const nameInputEl = document.getElementById("userName");
+  const saveNameBtn = document.getElementById("saveNameBtn");
+
+  // 匿名ID（ブラウザごとに固定）
+  let userId = localStorage.getItem("userId");
+  if (!userId) {
+    userId = Math.random().toString(36).slice(2, 8);
+    localStorage.setItem("userId", userId);
+  }
+
+  // 名前（コテハン）
+  let userName = localStorage.getItem("userName") || "名も無き流浪";
+  nameInputEl.value = userName === "名も無き流浪" ? "" : userName;
+
+  saveNameBtn.addEventListener("click", () => {
+    const nameInput = nameInputEl.value.trim();
+    userName = nameInput !== "" ? nameInput : "名も無き流浪";
+    localStorage.setItem("userName", userName);
+    alert("名前を保存しました！");
+  });
+
+  // コレクション名（このスレ専用）
+  const COLLECTION = "messages_anime";
+
+  // Firestore のログを画面に描画
+  function renderMessages(docs) {
+    messagesBox.innerHTML = "";
+    docs.forEach(doc => {
+      const data = doc.data();
+
+      const div = document.createElement("div");
+      div.className = "entry";
+
+      const time = data.createdAt?.toDate ? data.createdAt.toDate() : new Date();
+      const timeText = time.toLocaleString("ja-JP", { hour12: false });
+
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      meta.textContent = `${timeText}  ${data.userName}（ID:${data.userId}）`;
+
+      const body = document.createElement("div");
+      body.textContent = data.text;
+
+      div.appendChild(meta);
+      div.appendChild(body);
+      messagesBox.appendChild(div);
+    });
+
+    messagesBox.scrollTop = messagesBox.scrollHeight;
+  }
+
+  // Firestore リアルタイム更新
+  db.collection(COLLECTION)
+    .orderBy("createdAt")
+    .onSnapshot(snapshot => {
+      renderMessages(snapshot.docs);
+    });
+
+  // 投稿処理
+  async function sendMessage() {
+    const text = input.value.trim();
+    if (text === "") return;
+
+    await db.collection(COLLECTION).add({
+      text,
+      userName,
+      userId,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    input.value = "";
+  }
+
+  // Enter / Shift+Enter
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      if (!e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    }
+  });
+
+  sendBtn.addEventListener("click", sendMessage);
+</script>
+
+</body>
+</html>

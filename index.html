@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>社不同好会 - スレ一覧</title>
+  <style>
+body {
+  background-color: #ffffff;
+  background-image:
+    linear-gradient(#eee 1px, transparent 1px),
+    linear-gradient(90deg, #eee 1px, transparent 1px);
+  background-size: 20px 20px;
+  font-family: "Zen Maru Gothic", sans-serif;
+}
+
+h1 {
+      text-align: center;
+      color: #000000;
+      font-family: "Zen Maru Gothic", "Rounded Mplus 1c", sans-serif;
+      font-size: 30px;
+      margin-top: 10px;
+      margin-bottom: 20px;
+    }
+
+.thread-table {
+  width: 300px;
+  border-collapse: collapse;
+  margin: 20px auto;  /* ← autoで左右中央寄せ */
+  background: rgba(255,255,255,0.6);
+  backdrop-filter: blur(4px);
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+.thread-table td {
+  border: 1px solid #ccc;
+  padding: 0;
+  font-size: 18px;
+  text-align: center;   /* ← 追加！中央揃え */
+  vertical-align: middle;  /* ← 上下中央揃え */
+}
+
+/* ← これが重要 */
+.thread-table td a {
+  display: block;/* ← 行全体をクリック可能に */
+  width: 100%;
+  height: 100%;
+  padding: 12px; /* ゆったり余白 */
+  box-sizing: border-box;
+  text-decoration: none;
+  color: #444;
+  font-family: "Zen Maru Gothic", sans-serif;
+}
+
+.thread-table tr:hover {
+  background: #ffe5f1;  /* ホバー時にピンクっぽい */
+}
+
+  </style>
+</head>
+<body>
+  <h1>社不同好会 - スレ一覧</h1>
+
+ <table class="thread-table">
+  <tr><td><a href="./anime.html">アニメ</a></td></tr>
+  <tr><td><a href="./game.html">ゲーム</a></td></tr>
+  <tr><td><a href="./cooking.html">料理</a></td></tr>
+  <tr><td><a href="./daily.html">日記</a></td></tr>
+  <tr><td><a href="./freeboard.html">新しい話題</a></td></tr>
+</table>
+</body>
+
+</html>

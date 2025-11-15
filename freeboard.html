@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>自由スレ板</title>
+  <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background-color: #ffffff;
+      background-image:
+        linear-gradient(#eee 1px, transparent 1px),
+        linear-gradient(90deg, #eee 1px, transparent 1px);
+      background-size: 20px 20px;
+      font-family: "Zen Maru Gothic", sans-serif;
+      max-width: 600px;
+      margin: 30px auto;
+      padding: 0 10px;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 28px;
+      margin-bottom: 20px;
+    }
+
+    .thread-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background: rgba(255,255,255,0.9);
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    .thread-table th,
+    .thread-table td {
+      border: 1px solid #ccc;
+      padding: 10px;
+      font-size: 16px;
+      text-align: left;
+    }
+    .thread-table td a {
+      display: block;
+      text-decoration: none;
+      color: #444;
+    }
+    .thread-table tr:hover {
+      background: #ffe5f1;
+    }
+
+    #new-thread {
+      margin-top: 20px;
+      display: flex;
+      gap: 8px;
+    }
+    #threadTitle {
+      flex: 1;
+      padding: 8px;
+      font-size: 14px;
+    }
+    #createBtn {
+      padding: 8px 16px;
+      cursor: pointer;
+    }
+    #backLink {
+      display: block;
+      margin-bottom: 10px;
+      text-decoration: none;
+      color: #ff4141af;
+      font-size: 18px;
+    }
+
+ /* ーー ここからスマホ用（600px以下）の調整 ーー */
+  @media (max-width: 600px) {
+    body {
+      max-width: 100%;
+      margin: 10px auto;
+      padding: 0 8px;
+    }
+
+    h1 {
+      font-size: 22px;
+      margin-bottom: 12px;
+    }
+
+    .thread-table th,
+    .thread-table td {
+      padding: 8px;
+      font-size: 14px;
+    }
+
+    #new-thread {
+      flex-direction: column;   /* タイトル欄とボタンを縦並びに */
+      gap: 6px;
+    }
+
+    #threadTitle {
+      font-size: 15px;
+    }
+
+    #createBtn {
+      width: 100%;             /* ボタンを横いっぱい */
+      padding: 10px 0;
+    }
+
+    #backLink {
+      font-size: 16px;
+      margin-bottom: 8px;
+    }
+  }
+  </style>
+</head>
+<body>
+
+<h1>自由スレ板</h1>
+
+<!-- 新スレ作成フォーム -->
+<div id="new-thread">
+  <input id="threadTitle" type="text" placeholder="新しいスレのタイトル">
+  <button id="createBtn">スレ立て</button>
+</div>
+
+<!-- スレ一覧 -->
+<table class="thread-table">
+  <thead>
+    <tr>
+      <th>スレタイトル</th>
+      <th>作成日時</th>
+    </tr>
+  </thead>
+  <tbody id="threadsBody">
+    <!-- JS で追加される -->
+  </tbody>
+</table>
+
+<a id="backLink" href="index.html">ホームに戻る</a>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyDTDS4AbWgjWGlNpAfHHaXp_0LinPnWlIA",
+    authDomain: "chat-practice-cb2a3.firebaseapp.com",
+    projectId: "chat-practice-cb2a3",
+    storageBucket: "chat-practice-cb2a3.firebasestorage.app",
+    messagingSenderId: "1030899440592",
+    appId: "1:1030899440592:web:9579808f668e709931f7d5"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  const threadsBody = document.getElementById("threadsBody");
+  const titleInput = document.getElementById("threadTitle");
+  const createBtn = document.getElementById("createBtn");
+
+  const THREADS_COLLECTION = "threads";
+
+  // スレ一覧をリアルタイム取得
+  db.collection(THREADS_COLLECTION)
+    .orderBy("createdAt", "desc")
+    .onSnapshot((snapshot) => {
+      threadsBody.innerHTML = "";
+      snapshot.docs.forEach(doc => {
+        const data = doc.data();
+        const tr = document.createElement("tr");
+
+        const tdTitle = document.createElement("td");
+        const a = document.createElement("a");
+        a.href = `thread.html?id=${doc.id}`;
+        a.textContent = data.title || "(無題スレ)";
+        tdTitle.appendChild(a);
+
+        const tdTime = document.createElement("td");
+        const time = data.createdAt?.toDate ? data.createdAt.toDate() : null;
+        tdTime.textContent = time
+          ? time.toLocaleString("ja-JP", { hour12: false })
+          : "-";
+
+        tr.appendChild(tdTitle);
+        tr.appendChild(tdTime);
+        threadsBody.appendChild(tr);
+      });
+    });
+
+  // 新しいスレを作成
+  createBtn.addEventListener("click", async () => {
+    const title = titleInput.value.trim();
+    if (!title) {
+      alert("タイトルを入力してね");
+      return;
+    }
+
+    const docRef = await db.collection(THREADS_COLLECTION).add({
+      title,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    titleInput.value = "";
+    // そのまま新スレのページへジャンプ
+    location.href = `thread.html?id=${docRef.id}`;
+  });
+</script>
+
+</body>
+</html>
