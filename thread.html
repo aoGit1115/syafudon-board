@@ -8,9 +8,7 @@
   <style>
     body {
       font-family: sans-serif;
-      max-width: 500px;
-      margin: 30px auto;
-      padding: 0 10px;
+      margin: 0;  /* ← 上下の余白なし：バナーが一番上にくっつく */
       background: linear-gradient(120deg, #ffe6f2, #f0f4ff, #e5ffe9);
       background-size: 400% 400%;           /* ← 大きめにして動かす */
       animation: bg-move 18s ease-in-out infinite;
@@ -86,6 +84,23 @@
       color: #666;
       margin-bottom: 2px;
     }
+    .container {
+      max-width: 500px;
+      margin: 30px auto;    /* ここで真ん中寄せ */
+      padding: 0 10px 40px;
+    }
+   .site-header {
+  width: 100%;
+}
+
+.site-banner {
+  width: 100%;          /* 画面幅いっぱい */
+  display: block;
+  height: 180px;        /* 好きな高さに調整 */
+  object-fit: cover;    /* いい感じにトリミング */
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+}
+
 /* ーー ここからスマホ用(画面幅600px以下)の上書き ーー */
   @media (max-width: 600px) {
     body {
@@ -161,6 +176,7 @@
   <img src="banner-main.png" alt="社不同好会バナー" class="site-banner">
 </header>
 
+<div class="container"></div>
 <h2 id="threadTitle">スレッド</h2>
 
 <div id="messages"></div>
