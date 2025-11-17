@@ -55,18 +55,57 @@ h1 {
   background: #ffe5f1;  /* ホバー時にピンクっぽい */
 }
 
+.thread-table th {
+  background: #f8f5ff;
+  font-weight: 700;
+}
+
+.icon-cell {
+  width: 48px;
+  text-align: center;
+}
+
+.topic-icon {
+  font-size: 24px;
+}
+
+/* 必要ならカテゴリごとに色を変えてもいい */
+.topic-icon.anime { color: #ff6fa8; }
+.topic-icon.game  { color: #00a2ff; }
+.topic-icon.food  { color: #ffb347; }
+.topic-icon.daily  { color: #2c39ebb2; }
+.topic-icon.topic  { color: #2bf746e0; }
+
   </style>
 </head>
 <body>
   <h1>社不同好会 - スレ一覧</h1>
 
  <table class="thread-table">
-  <tr><td><a href="./anime.html">アニメ</a></td></tr>
-  <tr><td><a href="./game.html">ゲーム</a></td></tr>
-  <tr><td><a href="./cooking.html">料理</a></td></tr>
-  <tr><td><a href="./daily.html">日記</a></td></tr>
-  <tr><td><a href="./freeboard.html">新しい話題</a></td></tr>
+  <<tr>
+    <th>カテゴリ</th>
+    <th>スレッド</th>
+  </tr>
+  <tr>
+    <td class="icon-cell"><span class="topic-icon anime">🎬</span></td>
+    <td><a href="アニメ.html">アニメ雑談</a></td>
+  </tr>
+  <tr>
+    <td class="icon-cell"><span class="topic-icon game">🎮</span></td>
+    <td><a href="ゲーム.html">ゲーム雑談</a></td>
+  </tr>
+  <tr>
+    <td class="icon-cell"><span class="topic-icon food">🍳</span></td>
+    <td><a href="料理.html">料理・ごはん</a></td>
+  </tr>
+  <tr>
+    <td class="icon-cell"><span class="topic-icon daily">📖</span></td>
+    <td><a href="./daily.html">日記</a></td>
+  </tr>
+  <tr>
+    <td class="icon-cell"><span class="topic-icon topic">💬</span></td>
+    <td><a href="./freeboard.html">新しい話題</a></td>
+  </tr>
 </table>
 </body>
-
 </html>
