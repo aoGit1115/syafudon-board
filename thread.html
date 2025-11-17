@@ -11,7 +11,9 @@
       max-width: 500px;
       margin: 30px auto;
       padding: 0 10px;
-      background: linear-gradient(135deg, #fff0f6, #f0f4ff);
+      background: linear-gradient(120deg, #ffe6f2, #f0f4ff, #e5ffe9);
+      background-size: 400% 400%;           /* ← 大きめにして動かす */
+      animation: bg-move 18s ease-in-out infinite;
       color: #333;
     }
 
@@ -146,6 +148,11 @@
   max-height: 160px; /* 高さを抑えたいなら */
 }
 
+@keyframes bg-move {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
   </style>
 </head>
 <body>
