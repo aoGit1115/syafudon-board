@@ -85,7 +85,7 @@
       margin-bottom: 2px;
     }
     .container {
-      max-width: 500px;
+      max-width: 640px;
       margin: 30px auto;    /* ここで真ん中寄せ */
       padding: 0 10px 40px;
     }
@@ -105,8 +105,12 @@
   @media (max-width: 600px) {
     body {
       max-width: 100%;
+    }
+
+    .container {
+      max-width: 100%;
       margin: 10px auto;
-      padding: 0 8px;
+      padding: 0 8px 24px;
     }
 
     h2 {
@@ -176,7 +180,7 @@
   <img src="banner-main.png" alt="社不同好会バナー" class="site-banner">
 </header>
 
-<div class="container"></div>
+<div class="container">
 <h2 id="threadTitle">スレッド</h2>
 
 <div id="messages"></div>
@@ -198,7 +202,7 @@
 <a id="backLink" href="freeboard.html">← スレ一覧に戻る</a>
 
 <button id="clearBtn" style="display:none;">ログを全部消す</button>
-
+</div>
 
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
