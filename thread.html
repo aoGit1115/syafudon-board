@@ -532,6 +532,11 @@ function renderMessages(docs) {
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
+  // ★ このスレの最終更新時刻を更新
+  await threadDocRef.set({
+    lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+  }, { merge: true });
+
     input.value = "";
   }
 
@@ -544,6 +549,11 @@ function renderMessages(docs) {
         parentId, // ← ここが親メッセージとの紐づけ
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
+        // ★ 返信でも最終更新を更新
+          await threadDocRef.set({
+            lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+          }, { merge: true });
+
     }
 
   input.addEventListener("keydown", (e) => {

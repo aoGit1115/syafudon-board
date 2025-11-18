@@ -124,7 +124,7 @@
   <thead>
     <tr>
       <th>スレタイトル</th>
-      <th>作成日時</th>
+      <th>最終更新</th>
     </tr>
   </thead>
   <tbody id="threadsBody">
@@ -152,30 +152,38 @@
   const db = firebase.firestore();
 
   const threadsBody = document.getElementById("threadsBody");
-  const titleInput = document.getElementById("threadTitle");
-  const createBtn = document.getElementById("createBtn");
+  const titleInput   = document.getElementById("threadTitle");
+  const createBtn    = document.getElementById("createBtn");
 
   const THREADS_COLLECTION = "threads";
 
-  // スレ一覧をリアルタイム取得
+  // ★ スレ一覧をリアルタイム取得（lastUpdated の新しい順）
   db.collection(THREADS_COLLECTION)
-    .orderBy("createdAt", "desc")
+    .orderBy("lastUpdated", "desc")
     .onSnapshot((snapshot) => {
       threadsBody.innerHTML = "";
+
       snapshot.docs.forEach(doc => {
         const data = doc.data();
         const tr = document.createElement("tr");
 
+        // タイトル
         const tdTitle = document.createElement("td");
         const a = document.createElement("a");
         a.href = `thread.html?id=${doc.id}`;
         a.textContent = data.title || "(無題スレ)";
         tdTitle.appendChild(a);
 
+        // ★ 最終更新時刻（lastUpdated が無ければ createdAt を使う）
         const tdTime = document.createElement("td");
-        const time = data.createdAt?.toDate ? data.createdAt.toDate() : null;
-        tdTime.textContent = time
-          ? time.toLocaleString("ja-JP", { hour12: false })
+        const ts = (data.lastUpdated && data.lastUpdated.toDate)
+          ? data.lastUpdated.toDate()
+          : (data.createdAt && data.createdAt.toDate
+              ? data.createdAt.toDate()
+              : null);
+
+        tdTime.textContent = ts
+          ? ts.toLocaleString("ja-JP", { hour12: false })
           : "-";
 
         tr.appendChild(tdTitle);
@@ -184,7 +192,7 @@
       });
     });
 
-  // 新しいスレを作成
+  // ★ 新しいスレを作成（createdAt と lastUpdated の両方をセット）
   createBtn.addEventListener("click", async () => {
     const title = titleInput.value.trim();
     if (!title) {
@@ -192,9 +200,12 @@
       return;
     }
 
+    const now = firebase.firestore.FieldValue.serverTimestamp();
+
     const docRef = await db.collection(THREADS_COLLECTION).add({
       title,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      createdAt: now,
+      lastUpdated: now   // ← ここを追加
     });
 
     titleInput.value = "";
