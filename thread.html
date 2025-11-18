@@ -378,28 +378,27 @@
 function renderMessages(docs) {
   messagesBox.innerHTML = "";
   
-  // Firestoreのdocを扱いやすい形に変換
+   // Firestoreのdocを扱いやすい形に変換
   const list = docs.map(doc => {
-    const data = doc.data();
     return {
       id: doc.id,
-      ...data
+      ...doc.data()
     };
   });
 
   // parentId があるもの＝返信
   const repliesByParent = {};
-  list.forEach(m => {
-    if (m.parentId) {
-      if (!repliesByParent[m.parentId]) {
-        repliesByParent[m.parentId] = [];
+  list.forEach(msg => {
+    if (msg.parentId) {
+      if (!repliesByParent[msg.parentId]) {
+        repliesByParent[msg.parentId] = [];
       }
-      repliesByParent[m.parentId].push(m);
+      repliesByParent[msg.parentId].push(msg);
     }
   });
 
   // parentId が無いもの＝通常の投稿（親）
-  const roots = list.filter(m => !m.parentId);
+  const roots = list.filter(msg => !msg.parentId);
 
   roots.forEach(m => {
     const entry = document.createElement("div");
@@ -409,27 +408,27 @@ function renderMessages(docs) {
     const iconWrapper = document.createElement("div");
     const img = document.createElement("img");
     img.className = "icon";
-    img.src = data.icon || DEFAULT_ICON_URL;   // ← アイコンなければデフォルト
+    img.src = m.icon || DEFAULT_ICON_URL;   // ← アイコンなければデフォルト
     iconWrapper.appendChild(img);
 
-    // --- テキスト部分 ---
+ // --- テキスト部分 ---
     const content = document.createElement("div");
     content.className = "content";
 
-    const time = data.createdAt?.toDate ? data.createdAt.toDate() : new Date();
+    const time = m.createdAt?.toDate ? m.createdAt.toDate() : new Date();
     const timeText = time.toLocaleString("ja-JP", { hour12: false });
 
     const meta = document.createElement("div");
     meta.className = "meta";
-    meta.textContent = `${timeText}  ${data.userName}（ID:${data.userId}）`;
+    meta.textContent = `${timeText}  ${m.userName}（ID:${m.userId}）`;
 
     const body = document.createElement("div");
-    body.textContent = data.text;
+    body.textContent = m.text;
 
     content.appendChild(meta);
     content.appendChild(body);
 
-   // === ここから返信ボタン＋返信欄 ===
+    // === ここから返信ボタン＋返信欄 ===
 
     // その投稿についた返信配列
     const replies = repliesByParent[m.id] || [];
