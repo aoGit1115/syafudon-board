@@ -509,7 +509,7 @@ function renderMessages(docs) {
       const postImg = document.createElement("img");
       postImg.className = "post-image";
       postImg.src = r.imageUrl;
-      content.appendChild(postImg);
+      rDiv.appendChild(postImg);   // ← こっち
     }
 
 
@@ -572,8 +572,15 @@ function renderMessages(docs) {
       // テキストも画像も空なら何もしない
       if (!text && !file) return;
 
-    // 画像があれば先にアップロード
-      const imageUrl = await uploadImageIfAny(file);
+       let imageUrl = null;
+
+        try {
+            // 画像があれば先にアップロード
+            imageUrl = await uploadImageIfAny(file);
+          } catch (err) {
+            console.error("画像アップロードでエラー", err);
+            alert("画像のアップロードに失敗したので、今回はテキストだけ投稿します。");
+          }
 
     await messagesRef.add({
       text,
