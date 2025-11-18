@@ -518,29 +518,47 @@ function renderMessages(docs) {
     repliesWrap.appendChild(replyList);
 
     // 返信入力欄
-    const replyInputArea = document.createElement("div");
-    replyInputArea.className = "reply-input-area";
+const replyInputArea = document.createElement("div");
+replyInputArea.className = "reply-input-area";
 
-    const replyTextarea = document.createElement("textarea");
-    replyTextarea.rows = 2;
-    replyTextarea.placeholder = "この投稿に返信を書く…";
+const replyTextarea = document.createElement("textarea");
+replyTextarea.rows = 2;
+replyTextarea.placeholder = "この投稿に返信を書く…";
 
-    const replySendBtn = document.createElement("button");
-    replySendBtn.textContent = "返信";
+// 返信用 画像ファイル入力
+const replyImageInput = document.createElement("input");
+replyImageInput.type = "file";
+replyImageInput.accept = "image/*";
+replyImageInput.style.maxWidth = "160px";
 
-    replySendBtn.addEventListener("click", async () => {
-      const text = replyTextarea.value.trim();
-      if (!text) return;
+const replySendBtn = document.createElement("button");
+replySendBtn.textContent = "返信";
 
-      await sendReply(m.id, text);
-      replyTextarea.value = "";
-    });
+replySendBtn.addEventListener("click", async () => {
+  const text = replyTextarea.value.trim();
+  const file = replyImageInput.files[0];
 
-    replyInputArea.appendChild(replyTextarea);
-    replyInputArea.appendChild(replySendBtn);
+  // テキストも画像も空なら何もしない
+  if (!text && !file) return;
 
-    repliesWrap.appendChild(replyInputArea);
+  let imageUrl = null;
+  try {
+    imageUrl = await uploadImageIfAny(file);
+  } catch (err) {
+    console.error("返信画像アップロードでエラー", err);
+    alert("返信画像のアップロードに失敗したので、今回はテキストだけ送ります。");
+  }
 
+  await sendReply(m.id, text, imageUrl);
+  replyTextarea.value = "";
+  replyImageInput.value = "";
+});
+
+replyInputArea.appendChild(replyTextarea);
+replyInputArea.appendChild(replyImageInput);
+replyInputArea.appendChild(replySendBtn);
+
+repliesWrap.appendChild(replyInputArea);
     // ボタンで開閉
     replyBtn.addEventListener("click", () => {
       repliesWrap.style.display =
@@ -608,6 +626,7 @@ function renderMessages(docs) {
         userId,
         icon: userIcon,
         parentId, // ← ここが親メッセージとの紐づけ
+        imageUrl: imageUrl || null,  // 返信画像URL
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
         // ★ 返信でも最終更新を更新
