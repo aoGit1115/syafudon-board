@@ -101,6 +101,35 @@
   box-shadow: 0 4px 12px rgba(0,0,0,0.25);
 }
 
+.banner-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.banner-title {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+
+  font-size: 48px;
+  font-family: "Zen Maru Gothic", sans-serif;
+  font-weight: 700;
+  color: white;
+
+  /* 黒フチ（太め） */
+  text-shadow:
+    -3px -3px 0 #000,
+     3px -3px 0 #000,
+    -3px  3px 0 #000,
+     3px  3px 0 #000,
+     0px  0px 6px #000;
+
+  /* 少し立体感を出す */
+  letter-spacing: 2px;
+  white-space: nowrap;
+}
+
 /* ーー ここからスマホ用(画面幅600px以下)の上書き ーー */
   @media (max-width: 600px) {
     body {
@@ -161,10 +190,10 @@
 .site-banner {
   width: 100%;
   display: block;
-  border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
   object-fit: cover;
   max-height: 160px; /* 高さを抑えたいなら */
+  border-radius: 0 !important;   /* ← これで角を完全に四角にできる */
 }
 
 @keyframes bg-move {
@@ -177,7 +206,10 @@
 <body>
 
 <header class="site-header">
-  <img src="banner-main.png" alt="社不同好会バナー" class="site-banner">
+  <div class="banner-wrapper">
+    <img src="banner-main.png" alt="社不同好会バナー" class="site-banner">
+    <div class="banner-title">社不同好会</div>
+  </div>
 </header>
 
 <div class="container">
