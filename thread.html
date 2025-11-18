@@ -201,6 +201,62 @@
   50%  { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
 }
+
+/* ==== 返信UI用 ==== */
+
+.entry-actions {
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.reply-toggle-btn {
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: #555;
+  padding: 0;
+}
+
+.reply-toggle-btn:hover {
+  text-decoration: underline;
+}
+
+.replies {
+  margin-top: 6px;
+  border-left: 2px solid #ddd;
+  padding-left: 10px;
+}
+
+.reply-entry {
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.reply-meta {
+  font-size: 11px;
+  color: #777;
+  margin-bottom: 2px;
+}
+
+.reply-input-area {
+  margin-top: 4px;
+  display: flex;
+  gap: 4px;
+}
+
+.reply-input-area textarea {
+  flex: 1;
+  font-size: 12px;
+  padding: 4px;
+  resize: none;
+}
+
+.reply-input-area button {
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
   </style>
 </head>
 <body>
@@ -321,9 +377,31 @@
 
 function renderMessages(docs) {
   messagesBox.innerHTML = "";
-  docs.forEach(doc => {
+  
+  // Firestoreのdocを扱いやすい形に変換
+  const list = docs.map(doc => {
     const data = doc.data();
+    return {
+      id: doc.id,
+      ...data
+    };
+  });
 
+  // parentId があるもの＝返信
+  const repliesByParent = {};
+  list.forEach(m => {
+    if (m.parentId) {
+      if (!repliesByParent[m.parentId]) {
+        repliesByParent[m.parentId] = [];
+      }
+      repliesByParent[m.parentId].push(m);
+    }
+  });
+
+  // parentId が無いもの＝通常の投稿（親）
+  const roots = list.filter(m => !m.parentId);
+
+  roots.forEach(m => {
     const entry = document.createElement("div");
     entry.className = "entry";
 
@@ -351,10 +429,85 @@ function renderMessages(docs) {
     content.appendChild(meta);
     content.appendChild(body);
 
+   // === ここから返信ボタン＋返信欄 ===
+
+    // その投稿についた返信配列
+    const replies = repliesByParent[m.id] || [];
+    const replyCount = replies.length;
+
+    // 💬 返信ボタン
+    const actions = document.createElement("div");
+    actions.className = "entry-actions";
+
+    const replyBtn = document.createElement("button");
+    replyBtn.className = "reply-toggle-btn";
+    replyBtn.textContent = `💬 ${replyCount}`;
+    actions.appendChild(replyBtn);
+    content.appendChild(actions);
+
+    // 返信一覧＋返信入力欄
+    const repliesWrap = document.createElement("div");
+    repliesWrap.className = "replies";
+    repliesWrap.style.display = "none"; // 初期状態は閉じる
+
+    // 返信一覧
+    const replyList = document.createElement("div");
+    replies.forEach(r => {
+      const rDiv = document.createElement("div");
+      rDiv.className = "reply-entry";
+
+      const rTime = r.createdAt?.toDate ? r.createdAt.toDate() : new Date();
+      const rTimeText = rTime.toLocaleString("ja-JP", { hour12: false });
+
+      const rMeta = document.createElement("div");
+      rMeta.className = "reply-meta";
+      rMeta.textContent = `${rTimeText}  ${r.userName}（ID:${r.userId}）`;
+
+      const rBody = document.createElement("div");
+      rBody.textContent = r.text;
+
+      rDiv.appendChild(rMeta);
+      rDiv.appendChild(rBody);
+      replyList.appendChild(rDiv);
+    });
+
+    repliesWrap.appendChild(replyList);
+
+    // 返信入力欄
+    const replyInputArea = document.createElement("div");
+    replyInputArea.className = "reply-input-area";
+
+    const replyTextarea = document.createElement("textarea");
+    replyTextarea.rows = 2;
+    replyTextarea.placeholder = "この投稿に返信を書く…";
+
+    const replySendBtn = document.createElement("button");
+    replySendBtn.textContent = "返信";
+
+    replySendBtn.addEventListener("click", async () => {
+      const text = replyTextarea.value.trim();
+      if (!text) return;
+
+      await sendReply(m.id, text);
+      replyTextarea.value = "";
+    });
+
+    replyInputArea.appendChild(replyTextarea);
+    replyInputArea.appendChild(replySendBtn);
+
+    repliesWrap.appendChild(replyInputArea);
+
+    // ボタンで開閉
+    replyBtn.addEventListener("click", () => {
+      repliesWrap.style.display =
+        repliesWrap.style.display === "none" ? "block" : "none";
+    });
+
+    content.appendChild(repliesWrap);
+
     // --- entry に合体 ---
     entry.appendChild(iconWrapper);
     entry.appendChild(content);
-
     messagesBox.appendChild(entry);
   });
 
@@ -382,6 +535,17 @@ function renderMessages(docs) {
 
     input.value = "";
   }
+
+    async function sendReply(parentId, text) {
+      await messagesRef.add({
+        text,
+        userName,
+        userId,
+        icon: userIcon,
+        parentId, // ← ここが親メッセージとの紐づけ
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
 
   input.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
