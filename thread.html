@@ -549,7 +549,7 @@ replySendBtn.addEventListener("click", async () => {
     alert("返信画像のアップロードに失敗したので、今回はテキストだけ送ります。");
   }
 
-  await sendReply(m.id, text, imageUrl);
+  await sendReply(m.id, text, imageUrl);// ← imageUrl を渡す
   replyTextarea.value = "";
   replyImageInput.value = "";
 });
@@ -619,7 +619,7 @@ repliesWrap.appendChild(replyInputArea);
     imageInput.value = ""; // ファイル選択をリセット
   }
 
-    async function sendReply(parentId, text) {
+    async function sendReply(parentId, text, imageUrl = null) {
       await messagesRef.add({
         text,
         userName,
