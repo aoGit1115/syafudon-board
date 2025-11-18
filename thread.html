@@ -320,73 +320,60 @@
 
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
-  const storage = firebase.storage();   // ←追加
+  const storage = firebase.storage();
 
-  // URL から threadId を取得
-  const params = new URLSearchParams(location.search);
-  const threadId = params.get("id");
-
+  // -------- DOM --------
+  const params        = new URLSearchParams(location.search);
+  const threadId      = params.get("id");
   const threadTitleEl = document.getElementById("threadTitle");
-  const messagesBox = document.getElementById("messages");
-  const input = document.getElementById("messageInput");
-  const sendBtn = document.getElementById("sendBtn");
-  const nameInputEl = document.getElementById("userName");
-  const saveNameBtn = document.getElementById("saveNameBtn");
-  const iconInput = document.getElementById("iconInput");
-  const imageInput = document.getElementById("imageInput");  // ←追加
-
-  // 画像が選ばれていたら Storage にアップロードして URL を返す
-async function uploadImageIfAny(file) {
-  if (!file) return null;
-
-  const filePath = `threads/${threadId}/${Date.now()}_${file.name}`;
-  const ref = storage.ref().child(filePath);
-
-  await ref.put(file);                 // アップロード
-  const url = await ref.getDownloadURL(); // 公開URL取得
-  return url;
-}
+  const messagesBox   = document.getElementById("messages");
+  const input         = document.getElementById("messageInput");
+  const sendBtn       = document.getElementById("sendBtn");
+  const nameInputEl   = document.getElementById("userName");
+  const saveNameBtn   = document.getElementById("saveNameBtn");
+  const iconInput     = document.getElementById("iconInput");
+  const imageInput    = document.getElementById("imageInput");
 
   if (!threadId) {
     threadTitleEl.textContent = "スレッドIDが指定されていません";
     throw new Error("threadId missing");
   }
 
-  // 匿名ID
-  let userId = localStorage.getItem("userId");
+  const threadDocRef = db.collection("threads").doc(threadId);
+  const messagesRef  = threadDocRef.collection("messages");
+  const DEFAULT_ICON_URL = "default-icon.png";
+
+  // -------- 匿名ID・名前・アイコン --------
+  let userId   = localStorage.getItem("userId");
   if (!userId) {
     userId = Math.random().toString(36).slice(2, 8);
     localStorage.setItem("userId", userId);
   }
 
-  // 名前 & アイコン（localStorage から復元）
   let userName = localStorage.getItem("userName") || "名も無き流浪";
   let userIcon = localStorage.getItem("userIcon") || null;
   nameInputEl.value = userName === "名も無き流浪" ? "" : userName;
 
-// 名前＋アイコンの保存
   saveNameBtn.addEventListener("click", () => {
     const nameInput = nameInputEl.value.trim();
-    userName = nameInput !== "" ? nameInput : "名も無き流浪";
+    userName = nameInput || "名も無き流浪";
     localStorage.setItem("userName", userName);
 
-// アイコン画像も保存
-  const file = iconInput.files[0];
-  if (file) {
-    const reader = new FileReader();
-    reader.onload = () => {
-      userIcon = reader.result; // メモリにも保持
-      localStorage.setItem("userIcon", userIcon);  // base64保存
-    alert("名前とアイコンを保存しました");
-    };
-    reader.readAsDataURL(file);
-  } else {
-    alert("名前を保存しました");
-  }
-});
+    const file = iconInput.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        userIcon = reader.result;
+        localStorage.setItem("userIcon", userIcon);
+        alert("名前とアイコンを保存しました");
+      };
+      reader.readAsDataURL(file);
+    } else {
+      alert("名前を保存しました");
+    }
+  });
 
-  // スレ情報を取得してタイトルに表示
-  const threadDocRef = db.collection("threads").doc(threadId);
+  // -------- スレタイトル --------
   threadDocRef.onSnapshot((doc) => {
     if (doc.exists) {
       const data = doc.data();
@@ -397,300 +384,249 @@ async function uploadImageIfAny(file) {
     }
   });
 
-  // このスレ専用メッセージコレクション
-  const messagesRef = threadDocRef.collection("messages");
-
-  const DEFAULT_ICON_URL = "default-icon.png";  // ← デフォルト画像
-
-function renderMessages(docs) {
-  messagesBox.innerHTML = "";
-  
-   // Firestoreのdocを扱いやすい形に変換
-  const list = docs.map(doc => {
-    return {
-      id: doc.id,
-      ...doc.data()
-    };
-  });
-
-  // parentId があるもの＝返信
-  const repliesByParent = {};
-  list.forEach(msg => {
-    if (msg.parentId) {
-      if (!repliesByParent[msg.parentId]) {
-        repliesByParent[msg.parentId] = [];
-      }
-      repliesByParent[msg.parentId].push(msg);
-    }
-  });
-
-  // parentId が無いもの＝通常の投稿（親）
-  const roots = list.filter(msg => !msg.parentId);
-
-  roots.forEach(m => {
-    const entry = document.createElement("div");
-    entry.className = "entry";
-
-    // --- アイコン部分 ---
-    const iconWrapper = document.createElement("div");
-    const img = document.createElement("img");
-    img.className = "icon";
-    img.src = m.icon || DEFAULT_ICON_URL;   // ← アイコンなければデフォルト
-    iconWrapper.appendChild(img);
-
- // --- テキスト部分 ---
-    const content = document.createElement("div");
-    content.className = "content";
-
-    const time = m.createdAt?.toDate ? m.createdAt.toDate() : new Date();
-    const timeText = time.toLocaleString("ja-JP", { hour12: false });
-
-    const meta = document.createElement("div");
-    meta.className = "meta";
-    meta.textContent = `${timeText}  ${m.userName}（ID:${m.userId}）`;
-
-    const body = document.createElement("div");
-    body.textContent = m.text;
-
-    content.appendChild(meta);
-    content.appendChild(body);
-
-    // 画像があれば表示
-    if (m.imageUrl) {
-      const postImg = document.createElement("img");
-      postImg.className = "post-image";
-      postImg.src = m.imageUrl;
-      content.appendChild(postImg);
-    }
-
-    // === ここから返信ボタン＋返信欄 ===
-
-    // その投稿についた返信配列
-    const replies = repliesByParent[m.id] || [];
-    const replyCount = replies.length;
-
-    // 💬 返信ボタン
-    const actions = document.createElement("div");
-    actions.className = "entry-actions";
-
-    const replyBtn = document.createElement("button");
-    replyBtn.className = "reply-toggle-btn";
-    replyBtn.textContent = `💬 ${replyCount}`;
-    actions.appendChild(replyBtn);
-    content.appendChild(actions);
-
-    // 返信一覧＋返信入力欄
-    const repliesWrap = document.createElement("div");
-    repliesWrap.className = "replies";
-    repliesWrap.style.display = "none"; // 初期状態は閉じる
-
-    // 返信一覧
-    const replyList = document.createElement("div");
-    replies.forEach(r => {
-      const rDiv = document.createElement("div");
-      rDiv.className = "reply-entry";
-
-      const rTime = r.createdAt?.toDate ? r.createdAt.toDate() : new Date();
-      const rTimeText = rTime.toLocaleString("ja-JP", { hour12: false });
-
-      const rMeta = document.createElement("div");
-      rMeta.className = "reply-meta";
-      rMeta.textContent = `${rTimeText}  ${r.userName}（ID:${r.userId}）`;
-
-      const rBody = document.createElement("div");
-      rBody.textContent = r.text;
-
-      rDiv.appendChild(rMeta);
-      rDiv.appendChild(rBody);
-      replyList.appendChild(rDiv);
-
-    // 画像があれば表示
-    if (r.imageUrl) {
-      const postImg = document.createElement("img");
-      postImg.className = "post-image";
-      postImg.src = r.imageUrl;
-      rDiv.appendChild(postImg);   // ← こっち
-    }
-
-
-    });
-
-    repliesWrap.appendChild(replyList);
-
-    // 返信入力欄
-const replyInputArea = document.createElement("div");
-replyInputArea.className = "reply-input-area";
-
-const replyTextarea = document.createElement("textarea");
-replyTextarea.rows = 2;
-replyTextarea.placeholder = "この投稿に返信を書く…";
-
-// 返信用 画像ファイル入力
-const replyImageInput = document.createElement("input");
-replyImageInput.type = "file";
-replyImageInput.accept = "image/*";
-replyImageInput.style.maxWidth = "160px";
-
-const replySendBtn = document.createElement("button");
-replySendBtn.textContent = "返信";
-
-replySendBtn.addEventListener("click", async () => {
-  const text = replyTextarea.value.trim();
-  const file = replyImageInput.files[0];
-
-  // テキストも画像も空なら何もしない
-  if (!text && !file) return;
-
-  let imageUrl = null;
-  try {
-    imageUrl = await uploadImageIfAny(file);
-  } catch (err) {
-    console.error("返信画像アップロードでエラー", err);
-    alert("返信画像のアップロードに失敗したので、今回はテキストだけ送ります。");
+  // -------- 画像アップロード共通関数 --------
+  async function uploadImageIfAny(file) {
+    if (!file) return null;
+    const filePath = `threads/${threadId}/${Date.now()}_${file.name}`;
+    const ref = storage.ref().child(filePath);
+    await ref.put(file);
+    const url = await ref.getDownloadURL();
+    return url;
   }
 
-  await sendReply(m.id, text, imageUrl);// ← imageUrl を渡す
-  replyTextarea.value = "";
-  replyImageInput.value = "";
-});
+  // -------- 投稿共通処理（通常投稿／返信どちらもこれ） --------
+  async function postMessage({ parentId = null, text, file }) {
+    // テキストも画像も空なら何もしない
+    if (!text && !file) return;
 
-replyInputArea.appendChild(replyTextarea);
-replyInputArea.appendChild(replyImageInput);
-replyInputArea.appendChild(replySendBtn);
-
-repliesWrap.appendChild(replyInputArea);
-    // ボタンで開閉
-    replyBtn.addEventListener("click", () => {
-      repliesWrap.style.display =
-        repliesWrap.style.display === "none" ? "block" : "none";
-    });
-
-    content.appendChild(repliesWrap);
-
-    // --- entry に合体 ---
-    entry.appendChild(iconWrapper);
-    entry.appendChild(content);
-    messagesBox.appendChild(entry);
-  });
-
-  messagesBox.scrollTop = messagesBox.scrollHeight;
-}
-
-
-  // メッセージをリアルタイムで取得
-  messagesRef.orderBy("createdAt").onSnapshot((snapshot) => {
-    renderMessages(snapshot.docs);
-  });
-
-  // 送信
-  async function sendMessage() {
-    const text = input.value.trim();
-    const file = imageInput.files[0];
-
-      // テキストも画像も空なら何もしない
-      if (!text && !file) return;
-
-       let imageUrl = null;
-
-        try {
-            // 画像があれば先にアップロード
-            imageUrl = await uploadImageIfAny(file);
-          } catch (err) {
-            console.error("画像アップロードでエラー", err);
-            alert("画像のアップロードに失敗したので、今回はテキストだけ投稿します。");
-          }
+    let imageUrl = null;
+    try {
+      imageUrl = await uploadImageIfAny(file);
+    } catch (err) {
+      console.error("画像アップロードでエラー", err);
+      alert("画像のアップロードに失敗したので、今回はテキストだけ投稿します。");
+    }
 
     await messagesRef.add({
       text,
       userName,
       userId,
-      icon: userIcon, // ← localStorageから復元した値（or 直前に保存した値）
-      imageUrl: imageUrl || null,   // ここが新フィールド
-      parentId: null,               // 親なし＝通常投稿
+      icon: userIcon,
+      parentId,
+      imageUrl: imageUrl || null,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
-  // ★ このスレの最終更新時刻を更新
-  await threadDocRef.set({
-    lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
-  }, { merge: true });
-
-    input.value = "";
-    imageInput.value = ""; // ファイル選択をリセット
+    // スレの最終更新時間を更新
+    await threadDocRef.set({
+      lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
   }
 
-    async function sendReply(parentId, text, imageUrl = null) {
-      await messagesRef.add({
-        text,
-        userName,
-        userId,
-        icon: userIcon,
-        parentId, // ← ここが親メッセージとの紐づけ
-        imageUrl: imageUrl || null,  // 返信画像URL
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-        // ★ 返信でも最終更新を更新
-          await threadDocRef.set({
-            lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
-          }, { merge: true });
-
-    }
+  // -------- メインの送信 --------
+  async function sendMessage() {
+    const text = input.value.trim();
+    const file = imageInput.files[0];
+    await postMessage({ parentId: null, text, file });
+    input.value = "";
+    imageInput.value = "";
+  }
 
   input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      if (!e.shiftKey) {
-        e.preventDefault();
-        sendMessage();
-      }
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
     }
   });
-
   sendBtn.addEventListener("click", sendMessage);
 
-// 管理者フラグ
-const ADMIN_KEY = "my-secret-admin-key-6F8d2K0p";
+  // -------- メッセージ描画 --------
+  function renderMessages(docs) {
+    messagesBox.innerHTML = "";
 
-// localStorage に admin=true が入っていれば管理者
-let isAdmin = localStorage.getItem("admin") === "true";
+    // ドキュメントを素の配列に
+    const list = docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
 
-// 管理者じゃない場合、パスコードを聞く
-if (!isAdmin) {
-  const pass = prompt("管理者パスを入力してください（一般ユーザーは空でOK）");
-  if (pass === ADMIN_KEY) {
-    isAdmin = true;
-    localStorage.setItem("admin", "true");
-    alert("管理者モードを有効化しました！");
-  }
-}
+    // parentId あり = 返信
+    const repliesByParent = {};
+    list.forEach(msg => {
+      if (msg.parentId) {
+        if (!repliesByParent[msg.parentId]) {
+          repliesByParent[msg.parentId] = [];
+        }
+        repliesByParent[msg.parentId].push(msg);
+      }
+    });
 
-// 管理者だけボタン表示＆削除処理
-const clearBtn = document.getElementById("clearBtn");
-// 管理者だけボタン表示
-if (isAdmin) {
-  clearBtn.style.display = "block";
+    // parentId なし = 親
+    const roots = list.filter(msg => !msg.parentId);
 
-  clearBtn.addEventListener("click", async () => {
-    if (!confirm("本当にこのスレのログを全部消しますか？")) return;
+    roots.forEach(m => {
+      const entry = document.createElement("div");
+      entry.className = "entry";
 
-    try {
-      // このスレの全メッセージを取得
-      const snap = await messagesRef.get();
+      // アイコン
+      const iconWrapper = document.createElement("div");
+      const img = document.createElement("img");
+      img.className = "icon";
+      img.src = m.icon || DEFAULT_ICON_URL;
+      iconWrapper.appendChild(img);
 
-      // まとめて削除（バッチ）
-      const batch = db.batch();
-      snap.forEach(doc => {
-        batch.delete(doc.ref);
+      // 本文
+      const content = document.createElement("div");
+      content.className = "content";
+
+      const time = m.createdAt?.toDate ? m.createdAt.toDate() : new Date();
+      const timeText = time.toLocaleString("ja-JP", { hour12: false });
+
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      meta.textContent = `${timeText}  ${m.userName}（ID:${m.userId}）`;
+
+      const body = document.createElement("div");
+      body.textContent = m.text;
+
+      content.appendChild(meta);
+      content.appendChild(body);
+
+      if (m.imageUrl) {
+        const postImg = document.createElement("img");
+        postImg.className = "post-image";
+        postImg.src = m.imageUrl;
+        content.appendChild(postImg);
+      }
+
+      // ==== 返信表示 ====
+      const replies = repliesByParent[m.id] || [];
+      const replyCount = replies.length;
+
+      const actions = document.createElement("div");
+      actions.className = "entry-actions";
+
+      const replyBtn = document.createElement("button");
+      replyBtn.className = "reply-toggle-btn";
+      replyBtn.textContent = `💬 ${replyCount}`;
+      actions.appendChild(replyBtn);
+      content.appendChild(actions);
+
+      const repliesWrap = document.createElement("div");
+      repliesWrap.className = "replies";
+      repliesWrap.style.display = "none";
+
+      // 返信一覧
+      const replyList = document.createElement("div");
+      replies.forEach(r => {
+        const rDiv = document.createElement("div");
+        rDiv.className = "reply-entry";
+
+        const rTime = r.createdAt?.toDate ? r.createdAt.toDate() : new Date();
+        const rTimeText = rTime.toLocaleString("ja-JP", { hour12: false });
+
+        const rMeta = document.createElement("div");
+        rMeta.className = "reply-meta";
+        rMeta.textContent = `${rTimeText}  ${r.userName}（ID:${r.userId}）`;
+
+        const rBody = document.createElement("div");
+        rBody.textContent = r.text;
+
+        rDiv.appendChild(rMeta);
+        rDiv.appendChild(rBody);
+
+        if (r.imageUrl) {
+          const rImg = document.createElement("img");
+          rImg.className = "post-image";
+          rImg.src = r.imageUrl;
+          rDiv.appendChild(rImg);
+        }
+
+        replyList.appendChild(rDiv);
+      });
+      repliesWrap.appendChild(replyList);
+
+      // 返信入力欄
+      const replyInputArea = document.createElement("div");
+      replyInputArea.className = "reply-input-area";
+
+      const replyTextarea = document.createElement("textarea");
+      replyTextarea.rows = 2;
+      replyTextarea.placeholder = "この投稿に返信を書く…";
+
+      const replyImageInput = document.createElement("input");
+      replyImageInput.type = "file";
+      replyImageInput.accept = "image/*";
+      replyImageInput.style.maxWidth = "160px";
+
+      const replySendBtn = document.createElement("button");
+      replySendBtn.textContent = "返信";
+
+      replySendBtn.addEventListener("click", async () => {
+        const text = replyTextarea.value.trim();
+        const file = replyImageInput.files[0];
+        await postMessage({ parentId: m.id, text, file });
+        replyTextarea.value = "";
+        replyImageInput.value = "";
       });
 
-      await batch.commit();
-      alert("ログを全部削除しました！");
-    } catch (e) {
-      console.error(e);
-      alert("削除中にエラーが発生しました");
-    }
-  });
-}
+      replyInputArea.appendChild(replyTextarea);
+      replyInputArea.appendChild(replyImageInput);
+      replyInputArea.appendChild(replySendBtn);
+      repliesWrap.appendChild(replyInputArea);
 
+      // 開閉
+      replyBtn.addEventListener("click", () => {
+        repliesWrap.style.display =
+          repliesWrap.style.display === "none" ? "block" : "none";
+      });
+
+      content.appendChild(repliesWrap);
+
+      entry.appendChild(iconWrapper);
+      entry.appendChild(content);
+      messagesBox.appendChild(entry);
+    });
+
+    messagesBox.scrollTop = messagesBox.scrollHeight;
+  }
+
+  // -------- リアルタイム購読 --------
+  messagesRef.orderBy("createdAt").onSnapshot((snapshot) => {
+    renderMessages(snapshot.docs);
+  });
+
+  // -------- 管理者モード（既存のまま） --------
+  const ADMIN_KEY = "my-secret-admin-key-6F8d2K0p";
+  let isAdmin = localStorage.getItem("admin") === "true";
+
+  const clearBtn = document.getElementById("clearBtn");
+
+  if (!isAdmin) {
+    const pass = prompt("管理者パスを入力してください（一般ユーザーは空でOK）");
+    if (pass === ADMIN_KEY) {
+      isAdmin = true;
+      localStorage.setItem("admin", "true");
+      alert("管理者モードを有効化しました！");
+    }
+  }
+
+  if (isAdmin) {
+    clearBtn.style.display = "block";
+    clearBtn.addEventListener("click", async () => {
+      if (!confirm("本当にこのスレのログを全部消しますか？")) return;
+      try {
+        const snap = await messagesRef.get();
+        const batch = db.batch();
+        snap.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+        alert("ログを全部削除しました！");
+      } catch (e) {
+        console.error(e);
+        alert("削除中にエラーが発生しました");
+      }
+    });
+  }
 </script>
 
 </body>
