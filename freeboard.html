@@ -107,6 +107,18 @@
       margin-bottom: 8px;
     }
   }
+
+.delete-btn {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 0 4px;
+}
+
+.delete-btn:hover {
+  transform: scale(1.1);
+}
   </style>
 </head>
 <body>
@@ -125,6 +137,8 @@
     <tr>
       <th>スレタイトル</th>
       <th>最終更新</th>
+      <th></th> <!-- ゴミ箱ボタン用 -->
+
     </tr>
   </thead>
   <tbody id="threadsBody">
@@ -152,12 +166,20 @@
   const db = firebase.firestore();
 
   const threadsBody = document.getElementById("threadsBody");
-  const titleInput   = document.getElementById("threadTitle");
-  const createBtn    = document.getElementById("createBtn");
+  const titleInput  = document.getElementById("threadTitle");
+  const createBtn   = document.getElementById("createBtn");
 
   const THREADS_COLLECTION = "threads";
 
-  // ★ スレ一覧をリアルタイム取得（lastUpdated の新しい順）
+  // 最終更新 or 作成日時を表示用に整形
+  function formatTime(data) {
+    const ts = data.lastUpdated || data.createdAt;
+    if (!ts || !ts.toDate) return "-";
+    const d = ts.toDate();
+    return d.toLocaleString("ja-JP", { hour12: false });
+  }
+
+  // スレ一覧をリアルタイム取得（最終更新の新しい順）
   db.collection(THREADS_COLLECTION)
     .orderBy("lastUpdated", "desc")
     .onSnapshot((snapshot) => {
@@ -174,25 +196,28 @@
         a.textContent = data.title || "(無題スレ)";
         tdTitle.appendChild(a);
 
-        // ★ 最終更新時刻（lastUpdated が無ければ createdAt を使う）
+        // 最終更新
         const tdTime = document.createElement("td");
-        const ts = (data.lastUpdated && data.lastUpdated.toDate)
-          ? data.lastUpdated.toDate()
-          : (data.createdAt && data.createdAt.toDate
-              ? data.createdAt.toDate()
-              : null);
+        tdTime.textContent = formatTime(data);
 
-        tdTime.textContent = ts
-          ? ts.toLocaleString("ja-JP", { hour12: false })
-          : "-";
+        // ゴミ箱ボタン
+        const tdDelete = document.createElement("td");
+        const delBtn = document.createElement("button");
+        delBtn.textContent = "🗑";
+        delBtn.className = "delete-btn";
+        delBtn.addEventListener("click", () => {
+          deleteThread(doc.id, data.title);
+        });
+        tdDelete.appendChild(delBtn);
 
         tr.appendChild(tdTitle);
         tr.appendChild(tdTime);
+        tr.appendChild(tdDelete);
         threadsBody.appendChild(tr);
       });
     });
 
-  // ★ 新しいスレを作成（createdAt と lastUpdated の両方をセット）
+  // スレ作成
   createBtn.addEventListener("click", async () => {
     const title = titleInput.value.trim();
     if (!title) {
@@ -205,14 +230,43 @@
     const docRef = await db.collection(THREADS_COLLECTION).add({
       title,
       createdAt: now,
-      lastUpdated: now   // ← ここを追加
+      lastUpdated: now
     });
 
     titleInput.value = "";
-    // そのまま新スレのページへジャンプ
     location.href = `thread.html?id=${docRef.id}`;
   });
-</script>
 
+  // スレ削除（中の messages サブコレクションも全部消す）
+  async function deleteThread(threadId, title) {
+    const label = title || "無題スレ";
+
+    const ok = confirm(
+      `「${label}」を削除しますか？\n\nこのスレの書き込みもすべて削除されます。`
+    );
+    if (!ok) return;
+
+    try {
+      const threadRef   = db.collection(THREADS_COLLECTION).doc(threadId);
+      const messagesRef = threadRef.collection("messages");
+
+      // メッセージ全部取得してバッチ削除
+      const snap = await messagesRef.get();
+      const batch = db.batch();
+      snap.forEach(msgDoc => {
+        batch.delete(msgDoc.ref);
+      });
+      await batch.commit();
+
+      // スレ本体を削除
+      await threadRef.delete();
+
+      alert("スレを削除しました。");
+    } catch (e) {
+      console.error(e);
+      alert("削除中にエラーが発生しました。");
+    }
+  }
+</script>
 </body>
 </html>
