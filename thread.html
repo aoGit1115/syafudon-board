@@ -265,6 +265,25 @@
   display: block;
 }
 
+/* ▼ ファイル選択ボタンを自作する用 ▼ */
+.file-input {
+  display: none;           /* 本物の input は隠す */
+}
+
+.file-label {
+  display: inline-block;
+  padding: 8px 12px;
+  font-size: 14px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  background-color: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.file-label:hover {
+  background-color: #f5f5f5;
+}
   </style>
 </head>
 <body>
@@ -284,8 +303,9 @@
 <div id="name-area">
   <input id="userName" type="text" placeholder="名も無き流浪">
 
- <!-- アイコンアップロード追加 -->
-  <input type="file" id="iconInput" accept="image/*" style="width:150px;">
+  <!-- アイコンアップロード -->
+  <input type="file" id="iconInput" accept="image/*" class="file-input">
+  <label for="iconInput" class="file-label">アイコン</label>
 
   <button id="saveNameBtn">名前を保存</button>
 </div>
@@ -294,7 +314,8 @@
   <textarea id="messageInput" placeholder="メッセージを入力…" rows="2"></textarea>
 
   <!-- 画像添付用 -->
-  <input type="file" id="imageInput" accept="image/*" style="max-width: 180px;">
+  <input type="file" id="imageInput" accept="image/*" class="file-input">
+  <label for="imageInput" class="file-label">画像を選択</label>
 
   <button id="sendBtn">投稿</button>
 </div>
